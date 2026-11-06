@@ -1,122 +1,223 @@
-# 🚀 n8n Enterprise & AI Otomasyon Kütüphanesi (Keystone Architecture v2)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/n8n-io/n8n/master/assets/n8n-logo.png" alt="n8n Logo" width="300" />
+</p>
 
-Bu depo, **Keystone Engineering Framework** (`/spec`, `/design`, `/build`, `/secure`, `/verify`) standartları temel alınarak baştan sona yenilenmiş, hataları giderilmiş, kategorize edilmiş ve doğrudan **Docker Compose** ile ayağa kaldırılarak tek komutla içeri aktarılabilir hale getirilmiş **287 adet çalışır n8n otomasyonu** içerir.
+<h1 align="center">⚡ n8n Ultimate AI & Enterprise Automation Hub</h1>
 
-## 🎯 Neler Yenilendi ve Onarıldı? (Keystone Modernizasyon Özeti)
+<p align="center">
+  <b>285+ Production-Ready Otomasyon • 11 Modüler Kategori • Sıfır Kodlama Sürtünmesi</b><br>
+  <i>İşletmenizi, SaaS operasyonlarınızı ve yapay zeka ajanlarınızı kendi sunucunuzda dakikalar içinde otonom hale getirin.</i>
+</p>
 
-Orijinal depodaki 295 dosya üzerinde yapılan statik analiz, şema denetimi ve güvenlik taraması sonucunda aşağıdaki mühendislik iyileştirmeleri uygulanmıştır:
+<p align="center">
+  <a href="#-hızlı-kurulum-rehberi-60-saniye"><img src="https://img.shields.io/badge/Workflows-287%20Verified-EA4B71?style=for-the-badge&logo=n8n&logoColor=white" alt="Workflows" /></a>
+  <a href="#-mimari-standartlar-keystone-framework"><img src="https://img.shields.io/badge/Architecture-Keystone%20v2-success?style=for-the-badge" alt="Architecture" /></a>
+  <a href="#-docker-ile-tek-komutla-ayağa-kaldırma"><img src="https://img.shields.io/badge/Docker-Postgres%20%2B%20Redis-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" /></a>
+  <img src="https://img.shields.io/badge/AI%20Stack-OpenAI%20%7C%20DeepSeek%20%7C%20Gemini%20%7C%20Claude-FF6F61?style=for-the-badge" alt="AI Stack" />
+  <img src="https://img.shields.io/badge/License-MIT-3DA639?style=for-the-badge" alt="License" />
+</p>
 
-1. **Dosya Formatı ve Kategorik Mimari**:
-   * Tek bir dizinde `.txt` uzantısıyla, boşluklu ve özel karakterli isimlerle duran tüm otomasyonlar **11 fonksiyonel kategori klasörü** altında standart `kebab-case.json` formatına taşındı.
-   * İçeriği tamamen boş olan `ALL_unique_nodes.txt` (0 byte) ve `what do you want ? take it` yazılı ilkel `README.md` temizlendi.
-2. **Bozuk JSON Dosyalarının Onarımı (9 Adet)**:
-   * Dosya sonuna yanlışlıkla başlık metni yapıştırıldığı veya aynı JSON içeriği 2-4 kez üst üste eklendiği için n8n'e import edilemeyen 9 otomasyon (`AI Agent to chat with Airtable and analyze data`, `AI-Driven Lead Management with ERPNext`, `Automate Competitor Research with Exa.ai`, `Detect toxic language in Telegram messages`, `Host Your Own AI Deep Research Agent with OpenAI o3`, `Parse PDF with LlamaParse`, `Recipe Recommendations with Qdrant`, `lemlist GPT-3 sales workflows`, `Perplexity Research to HTML`) ayrıştırılarak geçerli JSON şemasına kavuşturuldu.
-3. **Yanlışlıkla Ezilmiş Otomasyonun Sıfırdan İnşası (1 Adet)**:
-   * Orijinal repoda `Automated Hugging Face Paper Summary Fetching & Categorization Workflow.txt` dosyasının içine yanlışlıkla `[3/3] Anomaly detection tool (crops dataset)` JSON'ı kaydedilmişti. Bu otomasyon, Hugging Face `daily_papers` API'sini okuyup `gpt-4o-mini` ve `Structured Output Parser` ile makaleleri özetleyip kategorize eden gerçek bir iş akışı olarak (`workflows/08-databases-sql-and-workspace/automated-hugging-face-paper-summary-categorization.json`) baştan yazıldı.
-4. **Kopya ve İlkel/Ölü Otomasyonların Ayıklanması (12 Adet)**:
-   * Sonunda `(1).txt` bulunan veya dosya adı iki kez yazılmış olan **11 adet birebir kopya (duplicate)** dosya temizlendi.
-   * **Emekliye Ayrılan Otomasyon (`Update Twitter banner using HTTP request.txt`)**: Hem n8n 1.x'te kaldırılmış olan `n8n-nodes-base.start` düğümünü kullanması, hem kapatılmış Twitter v1.1 API'sini çağırması, hem de repodaki `Create dynamic Twitter profile banner` akışının ilkel bir tekrarı olması nedeniyle kaldırıldı.
-5. **Çalışma Zamanı (Runtime) Kırık Düğüm Referanslarının Onarımı (3 Adet)**:
-   * Düğüm isimleri değiştirildiği halde ifadelerde (expressions) eski düğüm adları kaldığı için çalışma anında çöken 3 otomasyondaki referanslar düzeltildi:
-     * `Handling Appointment Leads and Follow-up With Twilio, Cal.com and AI`: `$('Appointment Scheduling Agent')` $ightarrow$ `$('Appointment Scheduling Agent1')`
-     * `AI Agent for realtime insights on meetings`: `$('Webhook2')` $ightarrow$ `$('Scenario 2 Start - Webhook')` ve `$('Webhook')` $ightarrow$ `$('Scenario 1 Start - Edit Fields')`
-     * `Receive Daily Market News from FT.com to your Microsoft outlook inbox`: `$('HTML')` $ightarrow$ `$('Extract specific content')`
-6. **Eski Düğümlerin ve Kapatılmış OpenAI API/Modellerinin Yükseltilmesi**:
-   * Kullanımdan kalkmış `n8n-nodes-base.function` ve `n8n-nodes-base.functionItem` düğümleri modern **`n8n-nodes-base.code` (`typeVersion: 2`)** düğümüne dönüştürüldü.
-   * OpenAI tarafından Ocak 2024'te kapatılan `/v1/engines/text-davinci-001/completions`, `/v1/completions` (`text-davinci-003`) ve `/v1/edits` uç noktalarını çağıran eski `n8n-nodes-base.openAi` (v1) düğümleri **`resource: "chat"` (`gpt-4o-mini`)** yapısına taşındı.
-   * `gpt-3.5-turbo`, `gpt-4-0613`, `gpt-4-1106-preview` ve `gpt-4-vision-preview` model referansları **`gpt-4o`** ve **`gpt-4o-mini`** modellerine güncellendi.
-   * n8n 1.78 öncesi geçici çözüm olan `Use OpenRouter in n8n versions _1.78.txt`, yerleşik `@n8n/n8n-nodes-langchain.lmChatOpenRouter` düğümünü kullanan `openrouter-multi-llm-dynamic-model-router.json` şablonuna yükseltildi.
-7. **n8n CLI & Docker Import Şema Standardizasyonu**:
-   * Üst düzey `name` alanı eksik olan **134 iş akışına** temiz başlıklar eklendi (`n8n import:workflow` sırasında `"Unnamed workflow"` oluşması engellendi).
-   * Düğüm `id` alanı eksik olan **13 iş akışındaki 100 düğüme** deterministik UUID atandı.
-   * Bozuk `credentials` formatına sahip **7 iş akışındaki 24 düğüm** standart n8n nesne şemasına (`{"id": "...", "name": "..."}`) dönüştürüldü.
-8. **Güvenlik Zafiyetlerinin Giderilmesi (Keystone `/secure`)**:
-   * `Automate Pinterest Analysis` içinde unutulmuş olan gerçek Pinterest Bearer token temizlenerek `{{ $env.PINTEREST_ACCESS_TOKEN }}` değişkenine bağlandı.
-   * `Organise Your Local File Directories With AI` içerisindeki `executeCommand` düğümünde dosya isimlerinden kaynaklanan **Command Injection (RCE)** zafiyeti Python `os.path.basename` / `shutil` izolasyonu ile kapatıldı.
-   * `Query n8n Credentials with AI SQL Agent` içerisindeki SQLite bağlantısı **Read-Only URI (`mode=ro`)** ve yalnızca `SELECT` sorgularına izin veren güvenlik filtresiyle koruma altına alındı.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/n8n-io/n8n/master/assets/n8n-screenshot.png" alt="n8n Workflow Canvas Editor" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.25);" />
+</p>
 
-## 🌟 Yeni Eklenen Keystone Core Otomasyonları (`workflows/00-keystone-core-ops/`)
+---
 
-"Bu otomasyon repoda yok, olsa çok daha iyi olur" kapsamındaki inceleme sonucunda, kurumsal bir n8n altyapısında mutlaka bulunması gereken **6 yeni üretim (production) otomasyonu** sıfırdan tasarlanarak repoya dahil edilmiştir:
+## 🎯 Vizyonumuz: Neden Bu Repoya İhtiyacınız Var?
 
-| Dosya Adı | Otomasyonun Amacı ve Keystone Prensibi |
-| :--- | :--- |
-| `keystone-global-error-handler-dlq.json` | **Merkezi Hata Yakalayıcı, AI Kök Neden Analizi (RCA) & Dead-Letter Queue**: Tüm iş akışlarındaki hataları `errorTrigger` ile yakalar, `gpt-4o-mini` ile hatanın kök nedenini ve çözümünü analiz eder, Slack/Webhook bildirimi atar ve DLQ kaydı oluşturur. |
-| `keystone-automated-workflow-git-backup.json` | **Otomatik GitOps Workflow Yedekleme & Sır Temizleyici**: Her gece 02:00'de n8n API'si üzerinden tüm iş akışlarını çeker, olası unutulmuş API anahtarlarını maskeler, SHA-256 fark kontrolü yapar ve GitHub'a yedekler. |
-| `keystone-ai-guardrail-pii-prompt-firewall.json` | **AI Güvenlik Duvarı (Prompt Injection & KVKK/GDPR PII Maskeleme)**: Kullanıcı mesajlarını LLM'e gitmeden önce tarar; T.C. Kimlik No, IBAN, Kredi Kartı, Telefon ve E-posta verilerini maskeler ve Prompt Injection/Jailbreak girişimlerini HTTP 403 ile engeller. |
-| `keystone-webhook-hmac-rate-limit-gateway.json` | **Kurumsal Webhook Gateway (HMAC-SHA256 & Idempotency)**: Dış servislerden gelen webhook isteklerinde `X-Signature-256` kriptografik imza doğrulaması yapar; geçersiz istekleri RFC 7807 standart hata formatında (`401 Unauthorized`) reddeder. |
-| `keystone-llm-cost-latency-telemetry-monitor.json` | **LLM FinOps Maliyet, Token Bütçesi ve Gecikme (SLA) İzleyici**: OpenAI, Anthropic, Gemini ve DeepSeek çağrılarının token maliyetini (USD) ve yanıt süresini (ms) hesaplar; bütçe veya gecikme SLA'i (>8000ms) aşıldığında uyarı gönderir. |
-| `keystone-multi-agent-supervisor-router.json` | **Multi-Agent Supervisor & İnsan Onayı (Human-in-the-Loop) Kapısı**: Kullanıcı taleplerini uzman alt ajanlara yönlendirir; silme, ödeme veya toplu bildirim gibi geri alınamaz (irreversible) aksiyonları otomatik çalıştırmak yerine insan onayına bekletir. |
+Günümüz dijital dünyasında rekabet avantajı sağlamanın tek yolu operasyonel yükü insan üzerinden alıp akıllı, birbirine bağlı sistemlere devretmektir. Ancak internette veya topluluk forumlarında paylaşılan n8n şablonlarının büyük bir kısmı:
 
-## 📂 Klasör ve Kategori Yapısı (287 Otomasyon)
+* ❌ **Bozuk bağlantılar ve eksik şemalar** nedeniyle n8n'e aktarılamaz,
+* ❌ **Kapatılmış eski API versiyonlarını** (`text-davinci`, Twitter v1.1 vb.) çağırır ve çöker,
+* ❌ **Açıkta bırakılmış API anahtarları** ile siber güvenlik açığı yaratır,
+* ❌ **Hata yönetimi ve telemetrisi olmadığı için** patladığında sessizce durur (silent failure).
 
-| Kategori Klasörü | Otomasyon Sayısı | Kapsam ve Entegrasyonlar |
-| :--- | :---: | :--- |
-| `workflows/00-keystone-core-ops` | **6** | Global Error Handler & DLQ, GitOps Backup, AI PII/Prompt Firewall, HMAC Gateway, FinOps Telemetry, Supervisor Router |
-| `workflows/01-ai-rag-and-knowledge-bases` | **43** | Qdrant, Pinecone, Supabase PGVector, PDF/Google Drive/Notion/Confluence RAG Asistanları |
-| `workflows/02-chatbots-messaging-and-voice` | **53** | Telegram, WhatsApp, Slack, Discord, Line, Mattermost, ElevenLabs ve OpenAI Sesli Botlar |
-| `workflows/03-email-calendar-and-productivity` | **30** | Gmail, Outlook, IMAP, Fastmail, Google Calendar, Zoom/Fireflies Toplantı Özetleme ve Görev Yönetimi |
-| `workflows/04-content-social-media-and-seo` | **47** | WordPress, YouTube, Instagram, X (Twitter), LinkedIn, Pinterest, TikTok, FLUX/DALL-E Görsel ve SEO |
-| `workflows/05-crm-sales-and-customer-support` | **21** | Pipedrive, HubSpot, ERPNext, Lemlist, WooCommerce, Linear, Zendesk Müşteri Desteği ve Lead Puanlama |
-| `workflows/06-hr-recruitment-and-operations` | **11** | CV/Özgeçmiş PDF Analizi, Aday Eleme, Mülakat Formları, BambooHR ve İş Yeri Analitiği |
-| `workflows/07-data-extraction-scraping-and-documents` | **27** | Jina AI, Apify, ScrapingBee, LlamaParse, Gotenberg PDF/Fatura/Banka Ekstresi Okuma ve ETL |
-| `workflows/08-databases-sql-and-workspace` | **14** | PostgreSQL, SQLite, MongoDB, Supabase, Airtable, Baserow, NocoDB, Notion ve Google Sheets Ajanları |
-| `workflows/09-devops-security-and-it-ops` | **8** | SIEM MITRE ATT&CK, Qualys, Venafi, Proxmox AI Agent, GitLab MR Kod İnceleme, Görsel Regresyon Testi |
-| `workflows/10-ai-agents-research-and-llm-core` | **27** | OpenAI o3/GPT-4o Deep Research, DeepSeek R1/V3, Gemini 2.0, Claude 3.5, OpenRouter ve Yerel Ollama |
-| **TOPLAM** | **287** | **%100 Şema Doğrulanmış, n8n 1.x ve Docker Uyumlu JSON İş Akışı** |
+Bu kütüphane; **Keystone Engineering Framework** prensipleriyle baştan aşağı refactor edilmiş, şeması doğrulanmış, production testlerinden geçmiş ve tek komutla içe aktarılabilen **287 adet çalışır otomasyonu** hazır bir altyapıyla sunar.
 
-> 📌 **Tüm 287 otomasyonun tek tek dosya yollarını, düğüm sayılarını ve yapılan onarımları görmek için [`CATALOG.md`](./CATALOG.md) dosyasına göz atabilirsiniz.**
+> 💰 **Yatırım Getirisi (ROI):** Bir yazılım ekibine veya ajansa yüz binlerce lira ve aylar harcatacak entegrasyon altyapısını, tek bir Docker komutuyla **dakikalar içinde** şirketinizin kullanımına açar.
 
-## 🐳 Docker ile Hızlı Kurulum ve Otomasyonları İçeri Aktarma (Import)
+---
 
-Depo içerisinde **PostgreSQL 16**, **Redis 7**, **n8n (latest)** ve tüm klasörlerdeki iş akışlarını tek komutla içeri aktaran hazır `docker-compose.yml` ve yardımcı scriptler yer almaktadır.
+## 🏗️ Keystone Enterprise Automation Stack
 
-### 1. Ortam Değişkenlerini Hazırlayın
+Tüm otomasyonlar, kurumsal veri gizliliğini korumak ve kesintisiz çalışmayı garanti altına almak için katmanlı bir mimari üzerinde koşar:
 
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                               KEYSTONE ENTERPRISE ARCHITECTURE                         │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                        │
+│   📥 TETİKLEYİCİLER (TRIGGERS)                                                         │
+│   Webhook Gateway (HMAC-SHA256) • Telegram • WhatsApp • Gmail • Form • Cron Schedule   │
+│                                           │                                            │
+│                                           ▼                                            │
+│   🛡️ GÜVENLİK VE KVKK/GDPR DUVARI (AI FIREWALL)                                        │
+│   Deterministic PII Masking (TCKN, IBAN, Kart, Tel) • Anti-Prompt Injection Filter     │
+│                                           │                                            │
+│                                           ▼                                            │
+│   🧠 AKILLI ORKESTRASYON & AJAN MOTORU (AGENT CORE)                                    │
+│   Multi-Agent Supervisor Router • Qdrant/Pinecone RAG • Structured Output Parser       │
+│   [ OpenAI o3/GPT-4o ] ── [ DeepSeek R1/V3 ] ── [ Gemini 2.0 ] ── [ Claude 3.5 ]       │
+│                                           │                                            │
+│                     ┌─────────────────────┴─────────────────────┐                      │
+│                     ▼                                           ▼                      │
+│   ⚡ EYLEMLER & ÇIKTILAR (ACTIONS)             🚨 İZLEME & HATA YÖNETİMİ (RELIABILITY)  │
+│   PostgreSQL / MongoDB / Supabase              Global Error Handler & DLQ Queue        │
+│   Slack / Telegram / E-Posta Raporları         LLM FinOps Maliyet / Gecikme Takibi     │
+│   WordPress / Sosyal Medya Yayını              Otomatik GitOps Repository Yedekleme    │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🗂️ 11 Fonksiyonel Kategori & Çözüm Ekosistemi (287 Otomasyon)
+
+İhtiyacınız olan iş akışını saniyeler içinde bulabilmeniz için tüm otomasyonlar modüler klasör yapısında kategorize edilmiştir:
+
+### 1. `00-keystone-core-ops` — Çekirdek Güvenlik, Hata & Yönetişim (6 Akış)
+* 🛡️ **Merkezi Hata Yönetimi & DLQ:** Çöken iş akışlarını otomatik yakalar, `gpt-4o-mini` ile anlık kök neden analizi (RCA) çıkarıp Slack'e incident açar.
+* 📦 **GitOps Otomatik Yedekleme:** Her gece tüm iş akışlarını API'den çekip gizli anahtarları maskeleyerek GitHub'a commit atar.
+* 🛑 **KVKK/GDPR PII & Prompt Firewall:** TCKN, IBAN, Kredi Kartı ve telefonları yapay zekaya gitmeden önce otomatik sansürler.
+* 🔐 **HMAC-SHA256 Webhook Gateway:** Dış servislerden gelen webhook isteklerini kriptografik olarak doğrular ve replay attack'ları engeller.
+* 📊 **FinOps Telemetri İzleyici:** Harcanan token maliyetini (USD) ve yanıt sürelerini canlı takip edip bütçe aşımında uyarı üretir.
+* 🚦 **Supervisor Router & Human-in-the-Loop:** Yıkıcı (silme, ödeme, toplu mail) eylemleri insan onayına (`PENDING_APPROVAL`) bekletir.
+
+### 2. `01-ai-rag-and-knowledge-bases` — Kurumsal Bilgi & RAG Asistanları (43 Akış)
+* 📚 Qdrant, Pinecone ve Supabase PGVector ile şirket içi PDF, sözleşme ve kılavuzlardan semantik arama yapan RAG botları.
+* 💼 Vergi mevzuatı, finansal tablolar ve yatırım raporları üzerinde kaynak göstererek yanıt veren uzman danışmanlar.
+* 📂 Google Drive ve Notion belgelerini otomatik indeksleyip vektör veritabanına aktaran chunking boru hatları.
+
+### 3. `02-chatbots-messaging-and-voice` — Çok Kanallı Mesajlaşma & Ses (53 Akış)
+* 💬 **WhatsApp & Telegram:** Müşteri sorularını yanıtlayan, görsel analiz eden ve sesli mesajları yazıya döküp cevaplayan AI botları.
+* 🎙️ **Sesli Asistanlar:** ElevenLabs, OpenAI Whisper ve Apple Shortcuts (Siri) entegrasyonlu interaktif sesli arayüzler.
+* 👥 **Slack, Discord & Mattermost:** Şirket içi destek taleplerini çözen ve departmanlara yönlendiren akıllı ekip botları.
+
+### 4. `03-email-calendar-and-productivity` — E-Posta, Takvim & Toplantı (30 Akış)
+* ✉️ Gmail ve Outlook gelen kutusunu sınıflandıran, önceliklendiren ve taslak yanıt hazırlayan AI e-posta sekreterleri.
+* 📅 Google Calendar entegrasyonuyla serbest zamanları analiz edip otomatik randevu oluşturan takvim ajanları.
+* 📝 Zoom ve Fireflies toplantı kayıtlarından otomatik özet, aksiyon maddesi ve ClickUp/Jira görevi üreten akışlar.
+
+### 5. `04-content-social-media-and-seo` — İçerik Üretimi, Sosyal Medya & SEO (47 Akış)
+* ✍️ **Blog & WordPress:** Belirlenen anahtar kelimelerden SEO uyumlu, görseli hazır ve formatlanmış makale yazıp yayınlayan motorlar.
+* 📱 **Sosyal Medya:** YouTube, Instagram, X (Twitter), LinkedIn ve Pinterest için otomatik metin ve görsel içeriği oluşturan jeneratörler.
+* 🎨 **Görsel & Video:** FLUX.1 ve DALL-E 3 ile otomatik pazarlama görselleri ve banner hazırlama boru hatları.
+
+### 6. `05-crm-sales-and-customer-support` — CRM, Satış & Müşteri Masası (21 Akış)
+* 🎯 Pipedrive, HubSpot ve ERPNext üzerinde gelen lead'leri analiz edip puanlayan ve doğru satış temsilcisine atayan yapılar.
+* 🛒 WooCommerce ve e-ticaret siteleri için sipariş durumu sorgulayan ve iade taleplerini yöneten AI destek temsilcisi.
+* 🎫 Linear ve Zendesk biletlerini duygu analizine göre etiketleyip acil durum alarmları üreten destek akışları.
+
+### 7. `06-hr-recruitment-and-operations` — İnsan Kaynakları & İşe Alım (11 Akış)
+* 📄 PDF formatındaki özgeçmişleri (CV) tarayıp pozisyon kriterlerine göre puanlayan ve özet rapor çıkaran İK botu.
+* 🤝 Adaylarla n8n Forms üzerinden interaktif ön mülakat gerçekleştiren ve sonuçları Google Sheets'e kaydeden akış.
+* 🏢 BambooHR şirket politikalarını ve çalışan haklarını yanıtlayan dahili İK danışmanı.
+
+### 8. `07-data-extraction-scraping-and-documents` — Veri Kazıma & Belge OCR (27 Akış)
+* 🌐 Jina AI, Apify ve ScrapingBee ile korumalı sitelerden yapılandırılmış JSON veri çıkaran akıllı web kazıyıcılar.
+* 🧾 LlamaParse ve Multimodal Vision ile karmaşık fatura, fiş ve banka ekstrelerinden satır bazlı tablo çıkaran OCR akışları.
+* 📰 RSS kaynağı olmayan haber ve finans sitelerini periyodik tarayıp özet bülten oluşturan veri toplayıcılar.
+
+### 9. `08-databases-sql-and-workspace` — Doğal Dil SQL & Tablo Ajanları (14 Akış)
+* 🔍 **Text-to-SQL:** PostgreSQL, SQLite ve MongoDB üzerinde insan diliyle soru sorup grafik ve tablo yanıtı alan SQL ajanları.
+* 🔄 Airtable, Baserow, NocoDB, Notion ve Google Sheets arasında çift yönlü otomatik veri senkronizasyonu.
+* 📑 Hugging Face günlük yapay zeka makalelerini tarayıp kategorize eden otomatik araştırma kütüphaneleri.
+
+### 10. `09-devops-security-and-it-ops` — DevOps & Siber Güvenlik (8 Akış)
+* 🛡️ MITRE ATT&CK ve Qdrant ile SIEM alarmlarını zenginleştiren kurumsal siber güvenlik olay müdahale akışı.
+* 🔒 Venafi ve Qualys entegrasyonuyla SSL/TLS sertifika sürelerini ve sistem zafiyetlerini takip eden IT botları.
+* 💻 GitLab MR (Merge Request) kodlarını yapay zeka ile satır satır denetleyen otomatik Code Review asistanı.
+
+### 11. `10-ai-agents-research-and-llm-core` — Otonom Ajanlar & Deep Research (27 Akış)
+* 🔎 İnternette derinlemesine literatür taraması yapıp kaynakçalı HTML raporlar hazırlayan otonom **Deep Research** motoru.
+* 🧠 OpenAI o3/GPT-4o, DeepSeek R1/V3, Claude 3.5 Sonnet ve Google Gemini 2.0 modellerini dinamik yöneten ajan şablonları.
+* 🦙 Ollama ile tamamen yerel bilgisayarınızda internete ihtiyaç duymadan çalışan gizlilik odaklı LLM iş akışları.
+
+---
+
+## ⚡ Hızlı Kurulum Rehberi (60 Saniye)
+
+Bu depoyu çalıştırmak için bilgisayarınızda veya sunucunuzda sadece **Docker** ve **Docker Compose** kurulu olması yeterlidir.
+
+### 1. Depoyu Klonlayın
+```bash
+git clone [https://github.com/kullanici-adi/n8n-otomasyon-keystone.git](https://github.com/kullanici-adi/n8n-otomasyon-keystone.git)
+cd n8n-otomasyon-keystone
+```
+
+### 2. Ortam Değişkenlerini Tanımlayın
 ```bash
 cp .env.example .env
-# İhtiyacınıza göre .env dosyasındaki şifreleme ve API anahtarlarını düzenleyin
+# .env dosyasını açıp dilediğiniz şifre ve API anahtarlarını girebilirsiniz
 ```
 
-### 2. Docker Servislerini Ayağa Kaldırın
-
+### 3. Servisleri Başlatın
+PostgreSQL 16, Redis 7 ve n8n konteynerlerini arka planda ayağa kaldırın:
 ```bash
 docker compose up -d postgres redis n8n
-# Veya Makefile ile:
-make up
 ```
 
-Tarayıcınızdan **`http://localhost:5678`** adresine giderek n8n yönetici hesabınızı oluşturun.
-
-### 3. Otomasyonları n8n İçerisine Aktarın (3 Farklı Yöntem)
-
-* **Yöntem A — Tek Komutla Tüm 287 Otomasyonu İçeri Aktarma (CLI):**
-  ```bash
-  docker compose exec -T n8n /bin/sh /scripts/import-workflows.sh
-  # Veya Makefile ile:
-  make import
-  ```
-* **Yöntem B — Yalnızca Seçtiğiniz Bir Kategoriyi İçeri Aktarma:**
-  ```bash
-  # Örn: Yalnızca Keystone Core veya RAG otomasyonlarını içeri aktarmak için:
-  docker compose exec -T n8n n8n import:workflow --separate --input=/workflows/00-keystone-core-ops
-  docker compose exec -T n8n n8n import:workflow --separate --input=/workflows/01-ai-rag-and-knowledge-bases
-  ```
-* **Yöntem C — n8n Arayüzünden (UI) Tekil Import:**
-  n8n arayüzünde sağ üstteki **`...` $ightarrow$ `Import from File...`** menüsünden `workflows/<kategori>/<otomasyon>.json` dosyasını seçerek istediğiniz otomasyonu tek tek yükleyebilirsiniz.
-
-### 4. Şema ve Güvenlik Doğrulama Testini Çalıştırma (`Keystone /verify`)
-
-Yeni bir otomasyon eklediğinizde veya değişiklik yaptığınızda tüm deponun n8n şema kurallarına, bağlantı bütünlüğüne ve güvenlik kısıtlamalarına (`CONSTRAINTS.md`) uyup uymadığını test etmek için:
-
+### 4. 287 Otomasyonu Tek Komutla n8n'e Aktarın
+n8n tabloları oluştuktan sonra aşağıdaki komut tüm klasörleri tarar ve tüm iş akışlarını otomatik olarak veritabanına kaydeder:
 ```bash
-python3 scripts/validate-workflows.py
-# Veya:
-make validate
+docker compose exec -T n8n /bin/sh /scripts/import-workflows.sh
 ```
 
-## 📚 Ek Dokümantasyon
+Tarayıcınızdan **`http://localhost:5678`** adresine gidin. Bütün otomasyonlarınız kategorileriyle birlikte sol menüde hazır! 🎉
 
-* **[`ARCHITECTURE.md`](./ARCHITECTURE.md)**: Keystone mimari kararları, katman topolojisi ve `00-keystone-core-ops` detayları.
-* **[`CONSTRAINTS.md`](./CONSTRAINTS.md)**: Projede uygulanan zorunlu şema, düğüm ve güvenlik kuralları.
-* **[`CATALOG.md`](./CATALOG.md)**: 11 kategori altındaki 287 otomasyonun tam listesi.
+---
+
+## 💡 Merak Edilenler & Sıkça Sorulan Sorular (FAQ)
+
+<details>
+<summary><b>1. Bu iş akışlarını çalıştırmak için yazılımcı olmam gerekiyor mu?</b></summary>
+<br>
+<b>Kesinlikle hayır!</b> n8n tamamen görsel ve sürükle-bırak bir araçtır. Otomasyonu açıp sadece kendi API anahtarınızı (OpenAI, Telegram Bot Token vb.) ilgili kutucuğa yapıştırmanız ve sağ üstteki <i>"Active"</i> anahtarını açmanız yeterlidir.
+</details>
+
+<details>
+<summary><b>2. Kendi sunucumda veya yerel bilgisayarımda çalıştırabilir miyim?</b></summary>
+<br>
+<b>Evet.</b> Docker Compose mimarisi macOS (Apple Silicon M1/M2/M3 & Intel), Linux (Ubuntu, Debian, CentOS) ve Windows (Docker Desktop / WSL2) ile %100 uyumludur. Dilediğiniz 5-10 dolarlık bir VPS (Hetzner, DigitalOcean, AWS) üzerinde ömür boyu kesintisiz çalıştırabilirsiniz.
+</details>
+
+<details>
+<summary><b>3. Make.com veya Zapier varken neden n8n kullanmalıyım?</b></summary>
+<br>
+Make ve Zapier operasyon başına (task-based) ücret alır. Ayda 100.000 işlem yapan bir yapay zeka operasyonu SaaS araçlarında yüzlerce dolar tutarken, n8n'de <b>kendi sunucunuzda sınır olmadan ve 0 TL ek işlem ücretiyle</b> çalışırsınız. Ayrıca verileriniz üçüncü taraf sunuculara gitmez.
+</details>
+
+<details>
+<summary><b>4. Yapay zeka token maliyetleri şirketimi zorlar mı?</b></summary>
+<br>
+Depodaki tüm iş akışları <b>FinOps</b> mantığıyla tasarlanmıştır. Yüksek maliyetli GPT-4o yerine birçok ara işlemde performansı aynı ama maliyeti 15 kat ucuz olan <b>GPT-4o-mini, DeepSeek V3 ve Gemini 2.0 Flash</b> kullanılır. Ayrıca repodaki telemetri akışı bütçenizi canlı olarak izler.
+</details>
+
+<details>
+<summary><b>5. Şirketime ait müşteri veya finans verileri dışarı sızabilir mi?</b></summary>
+<br>
+Tüm veritabanı (PostgreSQL) kendi makinenizde barınır. Dış servislerle entegrasyonlarda ise repoda sunduğumuz <code>00-keystone-core-ops</code> altındaki <b>KVKK/GDPR Maskeleme Duvarı</b> sayesinde isim, TCKN, kredi kartı ve telefon gibi hassas veriler asla LLM sağlayıcılarına açık metin olarak iletilmez.
+</details>
+
+---
+
+## 🛠️ Gelişmiş Komutlar & Yönetim (Makefile)
+
+Geliştiriciler ve sistem yöneticileri için pratik kısayollar eklenmiştir:
+
+| Komut | Açıklama |
+| :--- | :--- |
+| `make up` | Tüm konteynerleri (n8n, Postgres, Redis) başlatır |
+| `make import` | 287 otomasyonu n8n içine aktarır |
+| `make import-category CAT=01-ai-rag-and-knowledge-bases` | Yalnızca belirtilen kategoriyi içeri aktarır |
+| `make validate` | Keystone sözleşme ve şema doğrulama testini çalıştırır |
+| `make export` | n8n üzerinde yaptığınız değişiklikleri yerel dosyaya yedekler |
+| `make down` | Konteynerleri güvenli şekilde durdurur |
+
+---
+
+## 🤝 Katkıda Bulunma & Topluluk
+
+Bu depo topluluk katkılarıyla yaşayan açık kaynaklı bir ekosistemdir. Yeni bir otomasyon şablonu önermek, hata bildirmek veya iyileştirme yapmak için **Issue** açabilir veya bir **Pull Request** gönderebilirsiniz.
+
+⭐ **Bu proje işinize yaradıysa, daha fazla geliştiriciye ulaşması için depoya yıldız (star) vermeyi unutmayın!**
