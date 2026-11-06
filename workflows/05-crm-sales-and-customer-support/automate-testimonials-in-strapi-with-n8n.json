@@ -1,0 +1,473 @@
+{
+  "id": "ba657e95-1644-4591-a1c5-516d86974ce6",
+  "name": "Automate testimonials in Strapi with n8n",
+  "active": false,
+  "nodes": [
+    {
+      "name": "Simplify Result",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        680,
+        100
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "Content",
+              "value": "={{$json[\"full_text\"].replace(/(?:https?|ftp):\\/\\/[\\n\\S]+/g, '')}}"
+            },
+            {
+              "name": "Author",
+              "value": "={{$json[\"user\"][\"name\"]}} (@{{$json[\"user\"][\"screen_name\"]}})"
+            },
+            {
+              "name": "Created",
+              "value": "={{new Date($json[\"created_at\"]).toISOString()}}"
+            },
+            {
+              "name": "URL",
+              "value": "=https://twitter.com/{{$json[\"user\"][\"screen_name\"]}}/status/{{$json[\"id_str\"]}}"
+            }
+          ]
+        },
+        "options": {},
+        "keepOnlySet": true
+      },
+      "typeVersion": 1,
+      "id": "108d5bc3-4db5-409e-a533-2f35d47ce243"
+    },
+    {
+      "name": "Store in Strapi",
+      "type": "n8n-nodes-base.strapi",
+      "position": [
+        1780,
+        100
+      ],
+      "parameters": {
+        "columns": "Content,Author,Created,URL",
+        "operation": "create",
+        "contentType": "posts"
+      },
+      "credentials": {
+        "strapiApi": {
+          "id": "136",
+          "name": "Strapi Demo"
+        }
+      },
+      "typeVersion": 1,
+      "id": "37cd08f4-e09d-4561-ab49-f7b78cd4a1d9"
+    },
+    {
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.interval",
+      "position": [
+        240,
+        100
+      ],
+      "parameters": {
+        "unit": "minutes",
+        "interval": 30
+      },
+      "typeVersion": 1,
+      "id": "5331b519-e72e-472d-af66-7b1ae0e87f40"
+    },
+    {
+      "name": "Is Retweet or Old?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        900,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"Content\"]}}",
+              "value2": "RT @",
+              "operation": "startsWith"
+            }
+          ],
+          "dateTime": [
+            {
+              "value1": "={{$json[\"Created\"]}}",
+              "value2": "={{new Date(new Date().getTime() - 30 * 60 * 1000)}}",
+              "operation": "before"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "typeVersion": 1,
+      "id": "9dfa66cb-3cfb-4b7c-abc0-2639bd0b8f46"
+    },
+    {
+      "name": "Search Tweets",
+      "type": "n8n-nodes-base.twitter",
+      "position": [
+        460,
+        100
+      ],
+      "parameters": {
+        "operation": "search",
+        "searchText": "(strapi OR n8n.io) AND lang:en",
+        "additionalFields": {
+          "tweetMode": "extended",
+          "resultType": "recent"
+        }
+      },
+      "credentials": {
+        "twitterOAuth1Api": {
+          "id": "15",
+          "name": "@MutedJam"
+        }
+      },
+      "typeVersion": 1,
+      "id": "755f1b9e-504b-4bdc-aa3d-57d5cd08ca31"
+    },
+    {
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        240,
+        -120
+      ],
+      "webhookId": "6f833370-9068-44ef-8e56-4ceb563a851e",
+      "parameters": {
+        "path": "6f833370-9068-44ef-8e56-4ceb563a851e",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "typeVersion": 1,
+      "id": "3c4b1466-2254-463b-a137-35118f500877"
+    },
+    {
+      "name": "Simplify Webhook Result",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        460,
+        -120
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "Content",
+              "value": "={{$json[\"body\"][\"data\"][\"fields\"][1][\"value\"]}}"
+            },
+            {
+              "name": "Author",
+              "value": "={{$json[\"body\"][\"data\"][\"fields\"][0][\"value\"]}}"
+            },
+            {
+              "name": "Created",
+              "value": "={{new Date().toISOString()}}"
+            },
+            {
+              "name": "URL"
+            }
+          ]
+        },
+        "options": {},
+        "keepOnlySet": true
+      },
+      "typeVersion": 1,
+      "id": "8c019e0d-cbb4-4c3d-acc3-623b4a184a32"
+    },
+    {
+      "name": "Analyze Form Submission",
+      "type": "n8n-nodes-base.googleCloudNaturalLanguage",
+      "position": [
+        680,
+        -220
+      ],
+      "parameters": {
+        "content": "={{$json[\"Content\"]}}",
+        "options": {}
+      },
+      "credentials": {
+        "googleCloudNaturalLanguageOAuth2Api": {
+          "id": "138",
+          "name": "Google Cloud Natural Language account"
+        }
+      },
+      "typeVersion": 1,
+      "id": "6da8a158-bd89-49d4-a5e3-d39d946076b5"
+    },
+    {
+      "name": "Analyze Tweet",
+      "type": "n8n-nodes-base.googleCloudNaturalLanguage",
+      "position": [
+        1120,
+        200
+      ],
+      "parameters": {
+        "content": "={{$json[\"Content\"]}}",
+        "options": {}
+      },
+      "credentials": {
+        "googleCloudNaturalLanguageOAuth2Api": {
+          "id": "138",
+          "name": "Google Cloud Natural Language account"
+        }
+      },
+      "typeVersion": 1,
+      "id": "0d0f1cd7-bf04-49c7-ae24-a246a545603a"
+    },
+    {
+      "name": "Merge Form Sentiment with Source",
+      "type": "n8n-nodes-base.merge",
+      "position": [
+        900,
+        -120
+      ],
+      "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "typeVersion": 1,
+      "id": "9b207b0d-8017-446e-a7d5-762dbe5ee856"
+    },
+    {
+      "name": "Merge Tweet Sentiment with Source",
+      "type": "n8n-nodes-base.merge",
+      "position": [
+        1340,
+        100
+      ],
+      "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "typeVersion": 1,
+      "id": "294e0e5a-67d1-4f62-a459-2269bf32bd1d"
+    },
+    {
+      "name": "Positive Form Sentiment?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1120,
+        -120
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json[\"documentSentiment\"][\"score\"]}}",
+              "value2": 0.4,
+              "operation": "larger"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "id": "c685b18d-f5ad-42b6-a867-1c37933c3be7"
+    },
+    {
+      "name": "Store Form Submission in Strapi",
+      "type": "n8n-nodes-base.strapi",
+      "position": [
+        1340,
+        -120
+      ],
+      "parameters": {
+        "columns": "Content,Author,Created,URL",
+        "operation": "create",
+        "contentType": "posts"
+      },
+      "credentials": {
+        "strapiApi": {
+          "id": "136",
+          "name": "Strapi Demo"
+        }
+      },
+      "typeVersion": 1,
+      "id": "b5357da1-7d89-4c98-a6d0-bd660f1e4028"
+    },
+    {
+      "name": "Positive Tweet Sentiment?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1560,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json[\"documentSentiment\"][\"score\"]}}",
+              "value2": 0.3,
+              "operation": "larger"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "id": "94fd64c3-bf17-44d1-afc5-ba139df2016e"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Simplify Webhook Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Tweet": {
+      "main": [
+        [
+          {
+            "node": "Merge Tweet Sentiment with Source",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Search Tweets": {
+      "main": [
+        [
+          {
+            "node": "Simplify Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simplify Result": {
+      "main": [
+        [
+          {
+            "node": "Is Retweet or Old?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every 30 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Search Tweets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Retweet or Old?": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Analyze Tweet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Tweet Sentiment with Source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Form Submission": {
+      "main": [
+        [
+          {
+            "node": "Merge Form Sentiment with Source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simplify Webhook Result": {
+      "main": [
+        [
+          {
+            "node": "Analyze Form Submission",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Form Sentiment with Source",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Positive Form Sentiment?": {
+      "main": [
+        [
+          {
+            "node": "Store Form Submission in Strapi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Positive Tweet Sentiment?": {
+      "main": [
+        [
+          {
+            "node": "Store in Strapi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Form Sentiment with Source": {
+      "main": [
+        [
+          {
+            "node": "Positive Form Sentiment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Tweet Sentiment with Source": {
+      "main": [
+        [
+          {
+            "node": "Positive Tweet Sentiment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "d2cb849e-fdd9-4e3b-a4f2-adb18ac033dd"
+  },
+  "tags": [
+    {
+      "id": "9e0628ec-54ff-4ff8-af73-983298c1017f",
+      "name": "05-crm-sales-and-customer-support"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-modernized"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "versionId": "4e72eba2-7dd7-4304-a322-c973a792de18"
+}

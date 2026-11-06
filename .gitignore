@@ -1,0 +1,21 @@
+# Ortam değişkenleri ve gizli anahtarlar (Keystone Secret Hygiene)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Yerel n8n ve Docker veri hacimleri
+n8n_data/
+postgres_data/
+redis_data/
+shared_drive/
+backups/
+
+# İşletim sistemi ve editör dosyaları
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
+.vscode/
+.idea/

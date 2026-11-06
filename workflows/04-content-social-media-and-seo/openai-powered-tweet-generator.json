@@ -1,0 +1,173 @@
+{
+  "id": "1831c054-2a52-43a1-ad4f-0b35c5c44d84",
+  "name": "OpenAI-powered tweet generator",
+  "active": false,
+  "nodes": [
+    {
+      "name": "On clicking 'execute'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {},
+      "typeVersion": 1,
+      "id": "0e76c09c-7f35-4a4c-a352-575c7d96b463"
+    },
+    {
+      "name": "FunctionItem",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        450,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $input.item.json;\n// hashtag list\nconst Hashtags = [\n \"#techtwitter\",\n \"#n8n\"\n];\n\n// random output function\nconst randomHashtag = Hashtags[Math.floor(Math.random() * Hashtags.length)];\nitem.hashtag = randomHashtag;\nreturn { json: item };"
+      },
+      "typeVersion": 2,
+      "id": "875db413-76aa-4bd1-a1c9-f65db686e9cb"
+    },
+    {
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        650,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: `Generate a tweet under 100 characters including the hashtag ${$('FunctionItem').item.json.hashtag}:` }], temperature: 0.7 }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-default",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 4.2,
+      "id": "12ed2b65-a220-4dc6-a65a-556a6c961fde"
+    },
+    {
+      "name": "Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "position": [
+        1050,
+        300
+      ],
+      "parameters": {
+        "table": "main",
+        "options": {},
+        "operation": "append",
+        "application": "appOaG8kEA8FAABOr"
+      },
+      "credentials": {
+        "airtableApi": {
+          "id": "411adcc6-fc6c-41",
+          "name": "airtableApi Account"
+        }
+      },
+      "typeVersion": 1,
+      "id": "0e83ac69-ab47-4d54-a14f-4d6ce8951404"
+    },
+    {
+      "name": "Set",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        850,
+        300
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "Hashtag",
+              "value": "={{$node[\"FunctionItem\"].json[\"hashtag\"]}}"
+            },
+            {
+              "name": "Content",
+              "value": "={{$node[\"HTTP Request\"].json[\"choices\"][0][\"text\"]}}"
+            }
+          ]
+        },
+        "options": {},
+        "keepOnlySet": true
+      },
+      "typeVersion": 1,
+      "id": "a6745f00-7e43-4f60-ad97-25f7863fafed"
+    }
+  ],
+  "connections": {
+    "Set": {
+      "main": [
+        [
+          {
+            "node": "Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FunctionItem": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On clicking 'execute'": {
+      "main": [
+        [
+          {
+            "node": "FunctionItem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "d2cb849e-fdd9-4e3b-a4f2-adb18ac033dd"
+  },
+  "tags": [
+    {
+      "id": "5f895829-6a70-4da3-a865-549b8f71dc3d",
+      "name": "04-content-social-media-and-seo"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-modernized"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "versionId": "a594ffe4-7ec5-465e-af42-d086d396d73a"
+}

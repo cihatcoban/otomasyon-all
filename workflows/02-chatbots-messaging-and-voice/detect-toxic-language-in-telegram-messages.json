@@ -1,0 +1,186 @@
+{
+  "id": "ee6db4d1-a4cc-4c72-acdf-efcfdafc85a0",
+  "name": "Detect toxic language in Telegram messages",
+  "active": false,
+  "nodes": [
+    {
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "position": [
+        600,
+        300
+      ],
+      "webhookId": "2d0805da-143e-40c9-b327-242b1f052c31",
+      "parameters": {
+        "updates": [
+          "message",
+          "edited_message",
+          "channel_post",
+          "edited_channel_post"
+        ],
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "d661fe8a-9cc4-43",
+          "name": "telegram_habot"
+        }
+      },
+      "typeVersion": 1,
+      "id": "b0c885aa-f3e0-40b4-a83a-b12e6e166320"
+    },
+    {
+      "name": "Google Perspective",
+      "type": "n8n-nodes-base.googlePerspective",
+      "position": [
+        800,
+        300
+      ],
+      "parameters": {
+        "text": "={{$json[\"message\"][\"text\"]}}",
+        "options": {
+          "languages": "en"
+        },
+        "requestedAttributesUi": {
+          "requestedAttributesValues": [
+            {
+              "attributeName": "identity_attack"
+            },
+            {
+              "attributeName": "threat"
+            },
+            {
+              "attributeName": "profanity"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "googlePerspectiveOAuth2Api": {
+          "id": "b34e8b42-e345-4f",
+          "name": "perspective_api"
+        }
+      },
+      "typeVersion": 1,
+      "id": "1ed33a4f-ec83-4717-a0d1-5bd7836f6f20"
+    },
+    {
+      "name": "IF",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1000,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json[\"attributeScores\"][\"PROFANITY\"][\"summaryScore\"][\"value\"]}}",
+              "value2": 0.7,
+              "operation": "larger"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "id": "d768392c-d6ed-4f15-aea5-06f711460a54"
+    },
+    {
+      "name": "Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        1200,
+        150
+      ],
+      "parameters": {
+        "text": "I don't tolerate toxic language!",
+        "chatId": "={{$node[\"Telegram Trigger\"].json[\"message\"][\"chat\"][\"id\"]}}",
+        "additionalFields": {
+          "reply_to_message_id": "={{$node[\"Telegram Trigger\"].json[\"message\"][\"message_id\"]}}"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "d661fe8a-9cc4-43",
+          "name": "telegram_habot"
+        }
+      },
+      "typeVersion": 1,
+      "id": "3adea465-0fa6-4cdb-aeea-1077a7c0ff4f"
+    },
+    {
+      "name": "NoOp",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        1200,
+        400
+      ],
+      "parameters": {},
+      "typeVersion": 1,
+      "id": "343af42f-4eaf-413f-a370-89b19559b721"
+    }
+  ],
+  "connections": {
+    "IF": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Perspective",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Perspective": {
+      "main": [
+        [
+          {
+            "node": "IF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "d2cb849e-fdd9-4e3b-a4f2-adb18ac033dd"
+  },
+  "tags": [
+    {
+      "id": "b838052a-58ce-4a95-a90f-292231d88f72",
+      "name": "02-chatbots-messaging-and-voice"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-modernized"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "versionId": "582a0718-516f-428e-aecb-4d8f76dff011"
+}

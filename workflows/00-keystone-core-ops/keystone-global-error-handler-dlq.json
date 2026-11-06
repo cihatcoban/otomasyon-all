@@ -1,0 +1,212 @@
+{
+  "id": "d2cb849e-fdd9-4e3b-a4f2-adb18ac033dd",
+  "name": "[Keystone Core] Global Error Handler, AI RCA & Dead-Letter Queue (DLQ)",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    {
+      "id": "4aa9be96-1b92-4f92-ab93-bef79335fa2f",
+      "name": "00-keystone-core-ops"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-core"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "pinData": {},
+  "versionId": "6a8d1abc-95b0-48b6-aecf-0d440a8845ab",
+  "nodes": [
+    {
+      "id": "1954762c-4cea-4b8d-aaf7-463ea99d711c",
+      "name": "Keystone Architecture Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        100
+      ],
+      "parameters": {
+        "color": 3,
+        "width": 480,
+        "height": 240,
+        "content": "## Keystone Global Error Handler & Dead-Letter Queue (DLQ)\n**Pillar:** *Silent Failure Hunter & Incident Triage (`/incident`)*\n- Tüm iş akışlarındaki yakalanmamış hataları merkezi olarak dinler.\n- Hatayı ve bağlamı normalize eder, AI ile kök neden analizi (RCA) ve çözüm önerisi üretir.\n- Slack/Telegram üzerinden anlık incident bildirimi gönderir ve veriyi Dead-Letter Queue (DLQ) tablosuna kaydeder."
+      }
+    },
+    {
+      "id": "920d75e0-acfa-4731-afd2-527ccf66889f",
+      "name": "Global Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        400
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "87175154-0aa9-4ff9-a529-f65de8c8922d",
+      "name": "Normalize Error Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const item = $input.first()?.json || {};\nconst wf = item.workflow || {};\nconst exec = item.execution || {};\nconst err = exec.error || {};\nreturn [{\n  json: {\n    incident_id: `INC-${Date.now()}`,\n    timestamp: new Date().toISOString(),\n    workflow_id: wf.id || 'unknown',\n    workflow_name: wf.name || 'Unnamed Workflow',\n    execution_id: exec.id || 'unknown',\n    execution_url: exec.url || '',\n    failed_node: exec.lastNodeExecuted || err.node?.name || 'unknown',\n    error_message: err.message || 'Unknown execution error',\n    error_stack: (err.stack || '').slice(0, 1500),\n    severity: (err.message || '').toLowerCase().includes('timeout') ? 'WARNING' : 'CRITICAL'\n  }\n}];"
+      }
+    },
+    {
+      "id": "b0ef208a-9f4e-442d-a217-614eef5d5e56",
+      "name": "AI Root Cause Triage",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        680,
+        400
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Keystone Incident Responder. Analyze this n8n workflow failure and provide a concise root-cause hypothesis and 2 immediate remediation steps in Turkish.\n\nWorkflow: {{ $json.workflow_name }}\nFailed Node: {{ $json.failed_node }}\nError: {{ $json.error_message }}\nStack: {{ $json.error_stack }}"
+      }
+    },
+    {
+      "id": "44348b90-f627-4fa8-aae0-cfcee21a69d9",
+      "name": "OpenAI RCA Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        680,
+        600
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-default",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "id": "0845d5e0-d1b6-435e-afd3-f531cfc1cf66",
+      "name": "Send Incident Alert (Webhook/Slack)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        980,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ALERT_WEBHOOK_URL || 'https://hooks.slack.com/services/REPLACE_ME' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: `🚨 *[${$('Normalize Error Payload').item.json.severity}] n8n İş Akışı Hatası*\\n*Workflow:* ${$('Normalize Error Payload').item.json.workflow_name}\\n*Düğüm:* ${$('Normalize Error Payload').item.json.failed_node}\\n*Hata:* ${$('Normalize Error Payload').item.json.error_message}\\n*AI Kök Neden Analizi:* ${$json.text}` }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "17ff6c3b-f514-4816-a9e2-ef5aa6711008",
+      "name": "Format DLQ Record",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        980,
+        500
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fda7b7ec-8ccb-4177-a98a-8d9228bf467f",
+              "name": "incident_id",
+              "type": "string",
+              "value": "={{ $('Normalize Error Payload').item.json.incident_id }}"
+            },
+            {
+              "id": "1fdcf8cd-94ae-458c-a781-655ede31c75e",
+              "name": "rca_summary",
+              "type": "string",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "id": "7d1ed25c-3b1e-4912-a208-cd3433d66807",
+              "name": "status",
+              "type": "string",
+              "value": "QUEUED_FOR_RETRY"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Global Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Error Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Error Payload": {
+      "main": [
+        [
+          {
+            "node": "AI Root Cause Triage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI RCA Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Root Cause Triage",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Root Cause Triage": {
+      "main": [
+        [
+          {
+            "node": "Send Incident Alert (Webhook/Slack)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format DLQ Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

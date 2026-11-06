@@ -1,0 +1,302 @@
+{
+  "id": "6",
+  "name": "ETL pipeline",
+  "active": false,
+  "nodes": [
+    {
+      "name": "Twitter",
+      "type": "n8n-nodes-base.twitter",
+      "position": [
+        300,
+        300
+      ],
+      "parameters": {
+        "limit": 3,
+        "operation": "search",
+        "searchText": "=#OnThisDay",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "twitterOAuth1Api": {
+          "id": "8f6fa34f-5827-4d",
+          "name": "twitter_api"
+        }
+      },
+      "typeVersion": 1,
+      "id": "fc1d9c29-bf00-4180-aa9f-302c06b6b7d2"
+    },
+    {
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "table": "tweets",
+        "columns": "text, score, magnitude",
+        "returnFields": "=*"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "94ce1d89-339c-4a",
+          "name": "postgres"
+        }
+      },
+      "typeVersion": 1,
+      "id": "b154bac5-23ce-4bbb-ad46-75714a584174"
+    },
+    {
+      "name": "MongoDB",
+      "type": "n8n-nodes-base.mongoDb",
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "fields": "text",
+        "options": {},
+        "operation": "insert",
+        "collection": "tweets"
+      },
+      "credentials": {
+        "mongoDb": {
+          "id": "f958dc13-19d9-48",
+          "name": "mongodb"
+        }
+      },
+      "typeVersion": 1,
+      "id": "8d597d42-ba15-43f2-a670-ef68485262f9"
+    },
+    {
+      "name": "Slack",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        1500,
+        200
+      ],
+      "parameters": {
+        "text": "=🐦 NEW TWEET with sentiment score {{$json[\"score\"]}} and magnitude {{$json[\"magnitude\"]}} ⬇️\n{{$json[\"text\"]}}",
+        "channel": "tweets",
+        "attachments": [],
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "4de9c8b9-0f5b-4e",
+          "name": "slack"
+        }
+      },
+      "typeVersion": 1,
+      "id": "9548ff42-a451-47c8-ac6d-1d32de1302b7"
+    },
+    {
+      "name": "IF",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1300,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json[\"score\"]}}",
+              "operation": "larger"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "id": "78885068-7a06-41c4-a21b-482df41a7f3e"
+    },
+    {
+      "name": "NoOp",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        1500,
+        400
+      ],
+      "parameters": {},
+      "typeVersion": 1,
+      "id": "a7ba546f-7077-49da-a059-fd3111e6e2a8"
+    },
+    {
+      "name": "Google Cloud Natural Language",
+      "type": "n8n-nodes-base.googleCloudNaturalLanguage",
+      "position": [
+        700,
+        300
+      ],
+      "parameters": {
+        "content": "={{$node[\"MongoDB\"].json[\"text\"]}}",
+        "options": {}
+      },
+      "credentials": {
+        "googleCloudNaturalLanguageOAuth2Api": {
+          "id": "d9eff420-5178-4f",
+          "name": "google_nlp"
+        }
+      },
+      "typeVersion": 1,
+      "id": "86312fa5-f149-453f-a425-6c2ed6eeb4c7"
+    },
+    {
+      "name": "Set",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "score",
+              "value": "={{$json[\"documentSentiment\"][\"score\"]}}"
+            },
+            {
+              "name": "magnitude",
+              "value": "={{$json[\"documentSentiment\"][\"magnitude\"]}}"
+            }
+          ],
+          "string": [
+            {
+              "name": "text",
+              "value": "={{$node[\"Twitter\"].json[\"text\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "typeVersion": 1,
+      "id": "7adb12cf-ef7f-45ae-a704-4cd5f2e390c6"
+    },
+    {
+      "name": "Cron",
+      "type": "n8n-nodes-base.cron",
+      "position": [
+        100,
+        300
+      ],
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 6
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "id": "15660dee-f875-414f-a7dd-a9145552e791"
+    }
+  ],
+  "connections": {
+    "IF": {
+      "main": [
+        [
+          {
+            "node": "Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron": {
+      "main": [
+        [
+          {
+            "node": "Twitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB": {
+      "main": [
+        [
+          {
+            "node": "Google Cloud Natural Language",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twitter": {
+      "main": [
+        [
+          {
+            "node": "MongoDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "IF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Cloud Natural Language": {
+      "main": [
+        [
+          {
+            "node": "Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "d2cb849e-fdd9-4e3b-a4f2-adb18ac033dd"
+  },
+  "tags": [
+    {
+      "id": "b838052a-58ce-4a95-a90f-292231d88f72",
+      "name": "02-chatbots-messaging-and-voice"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-modernized"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "versionId": "b0f63e97-c088-4f3a-a46d-ab4b0eaee312"
+}

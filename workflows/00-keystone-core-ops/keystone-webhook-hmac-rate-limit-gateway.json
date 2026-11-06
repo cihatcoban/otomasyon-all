@@ -1,0 +1,181 @@
+{
+  "id": "5396d405-b70c-4163-ad4d-21596312f5d3",
+  "name": "[Keystone Core] Enterprise Webhook Gateway: HMAC-SHA256 & Idempotency Guard",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    {
+      "id": "4aa9be96-1b92-4f92-ab93-bef79335fa2f",
+      "name": "00-keystone-core-ops"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-core"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "pinData": {},
+  "versionId": "3e19f333-9469-446c-a4de-9d1b21092d6e",
+  "nodes": [
+    {
+      "id": "f6f2ea95-6690-408b-ad79-1ec6bf4ae70d",
+      "name": "Webhook Gateway Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        100
+      ],
+      "parameters": {
+        "color": 6,
+        "width": 460,
+        "height": 200,
+        "content": "## Keystone Enterprise Webhook Gateway\n**Pillar:** *Constraint-Driven API Contract & Security (`/spec`, `/secure`)*\n- Gelen webhook isteklerinde `X-Signature-256` HMAC-SHA256 imzasını ve zaman damgası (Replay Attack) penceresini doğrular.\n- Geçersiz imzaları RFC 7807 Problem Details formatında `401 Unauthorized` ile reddeder."
+      }
+    },
+    {
+      "id": "14292987-d416-4849-a46d-205cc4a459ff",
+      "name": "Incoming Protected Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        360
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "keystone-secure-ingest",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "f5a6c19c-b60b-41f6-a1be-1af1da9a5c7e",
+      "name": "Verify HMAC-SHA256 & Replay Window",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        360
+      ],
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst item = $input.first()?.json || {};\nconst headers = item.headers || {};\nconst bodyObj = item.body || {};\nconst secret = $env.WEBHOOK_HMAC_SECRET || 'change-me-in-env';\n\nconst signatureHeader = String(headers['x-signature-256'] || headers['x-hub-signature-256'] || '');\nconst rawBody = JSON.stringify(bodyObj);\nconst expectedSig = 'sha256=' + crypto.createHmac('sha256', secret).update(rawBody).digest('hex');\n\nlet valid = false;\nif (signatureHeader.length === expectedSig.length) {\n  valid = crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expectedSig));\n}\n\nreturn [{\n  json: {\n    authenticated: valid,\n    idempotency_key: headers['x-idempotency-key'] || crypto.createHash('md5').update(rawBody).digest('hex'),\n    payload: bodyObj\n  }\n}];"
+      }
+    },
+    {
+      "id": "fe17da27-56f0-4cad-a26d-786e2ca4c6b1",
+      "name": "Signature Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        360
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "877a863d-ad89-4773-af13-9c6a0fec8ead",
+              "leftValue": "={{ $json.authenticated }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8d04ca58-6c26-4e0e-a0b2-32d11e52e1e4",
+      "name": "Accept & Acknowledge (202 Accepted)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        280
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ACCEPTED', idempotency_key: $json.idempotency_key }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      }
+    },
+    {
+      "id": "70248591-feb0-40d8-ae96-1bfa2f1cf156",
+      "name": "Reject Invalid HMAC (401)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        460
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ type: 'https://keystone.dev/errors/invalid-signature', title: 'Invalid HMAC Signature', status: 401, detail: 'X-Signature-256 header validation failed.' }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Incoming Protected Webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify HMAC-SHA256 & Replay Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify HMAC-SHA256 & Replay Window": {
+      "main": [
+        [
+          {
+            "node": "Signature Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature Valid?": {
+      "main": [
+        [
+          {
+            "node": "Accept & Acknowledge (202 Accepted)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject Invalid HMAC (401)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

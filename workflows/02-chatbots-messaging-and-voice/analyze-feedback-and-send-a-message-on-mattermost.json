@@ -1,0 +1,162 @@
+{
+  "id": "133",
+  "name": "Analyze the sentiment of feedback and send a message on Mattermost",
+  "active": false,
+  "nodes": [
+    {
+      "name": "Typeform Trigger",
+      "type": "n8n-nodes-base.typeformTrigger",
+      "position": [
+        510,
+        260
+      ],
+      "webhookId": "ad8a87ef-d293-4e48-8d36-838d69ebce0f",
+      "parameters": {
+        "formId": ""
+      },
+      "credentials": {
+        "typeformApi": {
+          "id": "7b77772f-c20d-40",
+          "name": "typeform"
+        }
+      },
+      "typeVersion": 1,
+      "id": "32ace7c8-dc43-4173-ab55-d9205a432d4a"
+    },
+    {
+      "name": "Google Cloud Natural Language",
+      "type": "n8n-nodes-base.googleCloudNaturalLanguage",
+      "position": [
+        710,
+        260
+      ],
+      "parameters": {
+        "content": "={{$node[\"Typeform Trigger\"].json[\"What did you think about the event?\"]}}",
+        "options": {}
+      },
+      "credentials": {
+        "googleCloudNaturalLanguageOAuth2Api": {
+          "id": "d9eff420-5178-4f",
+          "name": "cloud"
+        }
+      },
+      "typeVersion": 1,
+      "id": "f8a288ad-5ea4-43d7-a158-4afcebb4d508"
+    },
+    {
+      "name": "IF",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        910,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$node[\"Google Cloud Natural Language\"].json[\"documentSentiment\"][\"score\"]}}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "id": "cc21091d-ec6c-41b1-aff3-a5a40740e73d"
+    },
+    {
+      "name": "Mattermost",
+      "type": "n8n-nodes-base.mattermost",
+      "position": [
+        1110,
+        160
+      ],
+      "parameters": {
+        "message": "=You got a new feedback with a score of {{$node[\"Google Cloud Natural Language\"].json[\"documentSentiment\"][\"score\"]}}. Here is what it says:{{$node[\"Typeform Trigger\"].json[\"What did you think about the event?\"]}}",
+        "channelId": "4h1bz64cyifwxnzojkzh8hxh4a",
+        "attachments": [],
+        "otherOptions": {}
+      },
+      "credentials": {
+        "mattermostApi": {
+          "id": "71838444-0a42-49",
+          "name": "mattermost"
+        }
+      },
+      "typeVersion": 1,
+      "id": "a17d1dd5-dcc9-4c3f-ac82-125d660e2a5c"
+    },
+    {
+      "name": "NoOp",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        1110,
+        360
+      ],
+      "parameters": {},
+      "typeVersion": 1,
+      "id": "101feeb9-971d-4000-ad78-af94bb2b7d72"
+    }
+  ],
+  "connections": {
+    "IF": {
+      "main": [
+        [
+          {
+            "node": "Mattermost",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Typeform Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Cloud Natural Language",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Cloud Natural Language": {
+      "main": [
+        [
+          {
+            "node": "IF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "d2cb849e-fdd9-4e3b-a4f2-adb18ac033dd"
+  },
+  "tags": [
+    {
+      "id": "b838052a-58ce-4a95-a90f-292231d88f72",
+      "name": "02-chatbots-messaging-and-voice"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-modernized"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "versionId": "2aa31380-9d2f-406f-a076-54ff8357837a"
+}

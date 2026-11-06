@@ -1,0 +1,164 @@
+{
+  "id": "1ae99880-502c-4369-adf8-d90f86b7f269",
+  "name": "Analyze feedback using AWS Comprehend and send it to a Mattermost channel",
+  "active": false,
+  "nodes": [
+    {
+      "name": "Mattermost",
+      "type": "n8n-nodes-base.mattermost",
+      "position": [
+        810,
+        300
+      ],
+      "parameters": {
+        "message": "=You got new feedback with a score of {{$json[\"SentimentScore\"][\"Negative\"]}}. Here is what it says:{{$node[\"Typeform Trigger\"].json[\"What did you think about the event?\"]}}",
+        "channelId": "h7cxrd1cefr13x689enzyw7xhc",
+        "attachments": [],
+        "otherOptions": {}
+      },
+      "credentials": {
+        "mattermostApi": {
+          "id": "71838444-0a42-49",
+          "name": "Mattermost Credentials"
+        }
+      },
+      "typeVersion": 1,
+      "id": "5b2db2da-e16b-44e3-ae98-0ab14aecbe2b"
+    },
+    {
+      "name": "NoOp",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        800,
+        500
+      ],
+      "parameters": {},
+      "typeVersion": 1,
+      "id": "cf1eb257-4826-4681-a440-5cfefce99d8f"
+    },
+    {
+      "name": "IF",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        600,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [],
+          "string": [
+            {
+              "value1": "={{$json[\"Sentiment\"]}}",
+              "value2": "NEGATIVE"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "id": "6ddb0d3c-ef2f-4198-ad3d-364da7696524"
+    },
+    {
+      "name": "AWS Comprehend",
+      "type": "n8n-nodes-base.awsComprehend",
+      "position": [
+        400,
+        400
+      ],
+      "parameters": {
+        "text": "={{$json[\"What did you think about the event?\"]}}",
+        "operation": "detectSentiment"
+      },
+      "credentials": {
+        "aws": {
+          "id": "9138b5ff-8337-49",
+          "name": "AWS Comprehend Credentials"
+        }
+      },
+      "typeVersion": 1,
+      "id": "c1cff290-1e18-4447-ae6a-86cbca633c86"
+    },
+    {
+      "name": "Typeform Trigger",
+      "type": "n8n-nodes-base.typeformTrigger",
+      "position": [
+        200,
+        400
+      ],
+      "webhookId": "ad8a87ef-d293-4e48-8d36-838d69ebce0f",
+      "parameters": {
+        "formId": "DuJHEGW5"
+      },
+      "credentials": {
+        "typeformApi": {
+          "id": "7b77772f-c20d-40",
+          "name": "typeform"
+        }
+      },
+      "typeVersion": 1,
+      "id": "09ed0e3a-b0cb-4a7c-ae4c-8832dd28fca6"
+    }
+  ],
+  "connections": {
+    "IF": {
+      "main": [
+        [
+          {
+            "node": "Mattermost",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS Comprehend": {
+      "main": [
+        [
+          {
+            "node": "IF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Typeform Trigger": {
+      "main": [
+        [
+          {
+            "node": "AWS Comprehend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "d2cb849e-fdd9-4e3b-a4f2-adb18ac033dd"
+  },
+  "tags": [
+    {
+      "id": "b838052a-58ce-4a95-a90f-292231d88f72",
+      "name": "02-chatbots-messaging-and-voice"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-modernized"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "versionId": "5b62efc0-0c43-4cd3-ae9d-6250f64586c0"
+}

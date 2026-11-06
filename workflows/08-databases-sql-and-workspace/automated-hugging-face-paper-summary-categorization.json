@@ -1,0 +1,259 @@
+{
+  "id": "473c1700-6a4c-4523-a85f-a61b4e5207bb",
+  "name": "Automated Hugging Face Paper Summary Fetching & Categorization Workflow",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "d2cb849e-fdd9-4e3b-a4f2-adb18ac033dd"
+  },
+  "tags": [
+    {
+      "id": "efa9c566-a335-4ce2-acd1-f48e48b2fa71",
+      "name": "08-databases-sql-and-workspace"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-modernized"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern",
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {},
+  "versionId": "f4ba6ddc-b01a-4dea-a70b-192ce44381e3",
+  "nodes": [
+    {
+      "id": "25a5fbbe-8477-4c52-ac9a-83acd34e22ee",
+      "name": "Workflow Documentation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        120
+      ],
+      "parameters": {
+        "color": 4,
+        "width": 420,
+        "height": 260,
+        "content": "## Hugging Face Günlük Makale Özeti ve Kategorizasyon\n**Keystone Modernizasyon Notu:** Orijinal repoda bu dosya yanlışlıkla `[3/3] Anomaly detection` içeriğiyle ezilmişti. Hugging Face `daily_papers` API'sini okuyup GPT-4o-mini ile özetleyen ve kategorize eden gerçek iş akışı sıfırdan inşa edildi."
+      }
+    },
+    {
+      "id": "8f9eb2c5-6a20-42c2-a5a9-4aef82ace899",
+      "name": "Daily Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        220,
+        420
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "8d44ae31-1f8a-48ad-a29d-8ab18ab533ce",
+      "name": "Fetch Hugging Face Daily Papers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        420
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://huggingface.co/api/daily_papers",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "d9f90ea1-d4de-4bb0-ad90-b42c03a06b2f",
+      "name": "Limit Top 5 Papers",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        680,
+        420
+      ],
+      "parameters": {
+        "maxItems": 5
+      }
+    },
+    {
+      "id": "ded15d88-f7fc-4402-a4df-a3eab2086c6c",
+      "name": "Normalize Paper Metadata",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        900,
+        420
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f55ff16f-66f4-4360-a66b-95db6f8fec01",
+              "name": "paper_id",
+              "type": "string",
+              "value": "={{ $json.paper?.id || $json.id || 'unknown' }}"
+            },
+            {
+              "id": "2c3a4249-d770-4005-a649-dbd822dcaf79",
+              "name": "title",
+              "type": "string",
+              "value": "={{ $json.paper?.title || $json.title || '' }}"
+            },
+            {
+              "id": "f46dd28a-5499-48ef-af0b-8fb8ee1ec1c5",
+              "name": "summary",
+              "type": "string",
+              "value": "={{ $json.paper?.summary || $json.summary || '' }}"
+            },
+            {
+              "id": "4539e4b4-8890-49c2-a00a-feae0bfc1439",
+              "name": "url",
+              "type": "string",
+              "value": "=https://huggingface.co/papers/{{ $json.paper?.id || $json.id }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b4ad150b-3dd6-4edf-a802-eb36f1371b76",
+      "name": "Summarize & Categorize Paper",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1140,
+        420
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the following AI research paper from Hugging Face.\nTitle: {{ $json.title }}\nAbstract: {{ $json.summary }}\n\nReturn a concise executive summary (3 bullet points), primary category (LLM, Vision, Multimodal, Audio, RL, Robotics, Systems, Safety), and practical engineering impact.",
+        "hasOutputParser": true
+      }
+    },
+    {
+      "id": "c7226e1b-dfb5-4f32-a7d2-d6537912d26d",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1140,
+        620
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-default",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "id": "dab3d424-97de-4cee-aec4-4f0b57e65212",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        1300,
+        620
+      ],
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"category\":{\"type\":\"string\"},\"tldr\":{\"type\":\"string\"},\"key_findings\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"relevance_score\":{\"type\":\"number\"}}}"
+      }
+    }
+  ],
+  "connections": {
+    "Daily Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Hugging Face Daily Papers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Hugging Face Daily Papers": {
+      "main": [
+        [
+          {
+            "node": "Limit Top 5 Papers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit Top 5 Papers": {
+      "main": [
+        [
+          {
+            "node": "Normalize Paper Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Paper Metadata": {
+      "main": [
+        [
+          {
+            "node": "Summarize & Categorize Paper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Summarize & Categorize Paper",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Summarize & Categorize Paper",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

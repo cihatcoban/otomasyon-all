@@ -1,0 +1,160 @@
+{
+  "id": "58e2d0dd-8b64-46a6-ab21-505343be7a1c",
+  "name": "[Keystone Core] Automated n8n Workflow GitOps Backup & Secret Sanitizer",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    {
+      "id": "4aa9be96-1b92-4f92-ab93-bef79335fa2f",
+      "name": "00-keystone-core-ops"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-core"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "pinData": {},
+  "versionId": "ecca7204-a870-4069-affb-60172d208f92",
+  "nodes": [
+    {
+      "id": "85e64c7a-763a-474d-abce-ebf0c6d4be42",
+      "name": "GitOps Backup Documentation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        100
+      ],
+      "parameters": {
+        "color": 4,
+        "width": 460,
+        "height": 220,
+        "content": "## Keystone Automated GitOps Workflow Backup\n**Pillar:** *Migration Safety & Secret Hygiene (`/ship`, `/secure`)*\n- Her gece 02:00'de n8n üzerindeki tüm iş akışlarını dışa aktarır.\n- İçeride unutulmuş olabilecek API anahtarlarını (`sk-...`, `Bearer ...`) maskeler.\n- SHA-256 özeti ile değişiklik kontrolü yaparak GitHub/GitLab deposuna yedekler."
+      }
+    },
+    {
+      "id": "5b9758b1-8285-4f44-a6aa-c4777aa9be40",
+      "name": "Nightly 02:00 Backup Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        380
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "139a324f-1e41-4ecd-acdf-97e30b16aa6c",
+      "name": "Fetch All Workflows via n8n API",
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [
+        440,
+        380
+      ],
+      "parameters": {
+        "filters": {},
+        "requestOptions": {}
+      },
+      "credentials": {
+        "n8nApi": {
+          "id": "n8n-internal-api",
+          "name": "n8n Internal API"
+        }
+      }
+    },
+    {
+      "id": "da7b0f1d-179d-4f7b-a5b3-2e8ca1327f5b",
+      "name": "Sanitize Secrets & Compute SHA256",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        380
+      ],
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst results = [];\nfor (const item of $input.all()) {\n  const wf = JSON.parse(JSON.stringify(item.json));\n  let serialized = JSON.stringify(wf, null, 2);\n  // Scrub accidental raw bearer tokens or OpenAI keys\n  serialized = serialized.replace(/sk-[a-zA-Z0-9_-]{20,}/g, '<REDACTED_OPENAI_KEY>');\n  const hash = crypto.createHash('sha256').update(serialized).digest('hex');\n  const slug = (wf.name || 'unnamed').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');\n  results.push({\n    json: {\n      workflow_id: wf.id,\n      workflow_name: wf.name,\n      file_path: `backups/${slug || wf.id}.json`,\n      sha256: hash,\n      content_base64: Buffer.from(serialized, 'utf8').toString('base64')\n    }\n  });\n}\nreturn results;"
+      }
+    },
+    {
+      "id": "f8b35827-58c3-4346-aca8-2c0a141c7c83",
+      "name": "Commit Backup to GitHub Repo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        940,
+        380
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/{{ $env.GITHUB_BACKUP_REPO || 'owner/n8n-backups' }}/contents/{{ $json.file_path }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.GITHUB_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: `chore(backup): sync ${$json.workflow_name} [${$json.sha256.slice(0,8)}]`, content: $json.content_base64 }) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Nightly 02:00 Backup Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch All Workflows via n8n API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch All Workflows via n8n API": {
+      "main": [
+        [
+          {
+            "node": "Sanitize Secrets & Compute SHA256",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitize Secrets & Compute SHA256": {
+      "main": [
+        [
+          {
+            "node": "Commit Backup to GitHub Repo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

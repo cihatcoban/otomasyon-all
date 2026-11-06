@@ -1,0 +1,165 @@
+{
+  "id": "127",
+  "name": "Create, update, and get a profile in Humantic AI",
+  "active": false,
+  "nodes": [
+    {
+      "name": "On clicking 'execute'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        290,
+        300
+      ],
+      "parameters": {},
+      "typeVersion": 1,
+      "id": "81d248bc-4a69-44ef-aea4-5cf9c8fac946"
+    },
+    {
+      "name": "Humantic AI",
+      "type": "n8n-nodes-base.humanticAi",
+      "position": [
+        490,
+        300
+      ],
+      "parameters": {
+        "userId": "https://www.linkedin.com/in/harshil1712/"
+      },
+      "credentials": {
+        "humanticAiApi": {
+          "id": "6e4617ba-86ad-4c",
+          "name": "humantic"
+        }
+      },
+      "typeVersion": 1,
+      "id": "66bc4cd4-538c-4c32-a28c-d049bd4af1c7"
+    },
+    {
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        690,
+        300
+      ],
+      "parameters": {
+        "url": "",
+        "options": {},
+        "responseFormat": "file"
+      },
+      "typeVersion": 1,
+      "id": "9e3537f6-444c-4bed-a200-3a8e1a635252"
+    },
+    {
+      "name": "Humantic AI1",
+      "type": "n8n-nodes-base.humanticAi",
+      "position": [
+        890,
+        300
+      ],
+      "parameters": {
+        "userId": "={{$node[\"Humantic AI\"].json[\"results\"][\"userid\"]}}",
+        "operation": "update",
+        "sendResume": true
+      },
+      "credentials": {
+        "humanticAiApi": {
+          "id": "6e4617ba-86ad-4c",
+          "name": "humantic"
+        }
+      },
+      "typeVersion": 1,
+      "id": "1c79a87a-a891-484e-a580-edc86e2d372f"
+    },
+    {
+      "name": "Humantic AI2",
+      "type": "n8n-nodes-base.humanticAi",
+      "position": [
+        1090,
+        300
+      ],
+      "parameters": {
+        "userId": "={{$node[\"Humantic AI\"].json[\"results\"][\"userid\"]}}",
+        "options": {
+          "persona": [
+            "hiring"
+          ]
+        },
+        "operation": "get"
+      },
+      "credentials": {
+        "humanticAiApi": {
+          "id": "6e4617ba-86ad-4c",
+          "name": "humantic"
+        }
+      },
+      "typeVersion": 1,
+      "id": "695bf3f9-2a30-42aa-ae95-fa3e875bdf38"
+    }
+  ],
+  "connections": {
+    "Humantic AI": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Humantic AI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Humantic AI1": {
+      "main": [
+        [
+          {
+            "node": "Humantic AI2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On clicking 'execute'": {
+      "main": [
+        [
+          {
+            "node": "Humantic AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "d2cb849e-fdd9-4e3b-a4f2-adb18ac033dd"
+  },
+  "tags": [
+    {
+      "id": "9d6e194f-1c25-4753-a04a-662a970700aa",
+      "name": "06-hr-recruitment-and-operations"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-modernized"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "versionId": "1e61595c-2f4c-4617-a49e-b37461a769de"
+}

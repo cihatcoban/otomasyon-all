@@ -1,0 +1,158 @@
+{
+  "id": "c8fe772f-747f-4d39-a0a7-de7214b3be70",
+  "name": "[Keystone Core] LLM Cost, Token Budget & Latency FinOps Telemetry Monitor",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    {
+      "id": "4aa9be96-1b92-4f92-ab93-bef79335fa2f",
+      "name": "00-keystone-core-ops"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-core"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "pinData": {},
+  "versionId": "bc7e86fb-14a2-4231-a2d9-9bca7348f3ca",
+  "nodes": [
+    {
+      "id": "b5b2caac-966f-4d29-abcd-c304a9f6e245",
+      "name": "FinOps Telemetry Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        100
+      ],
+      "parameters": {
+        "color": 2,
+        "width": 460,
+        "height": 200,
+        "content": "## Keystone LLM Cost & Latency FinOps Monitor\n**Pillar:** *Performance Auditor (`/perf`, `/constraints`)*\n- AI ajanlarının token kullanımını, yanıt gecikmesini (ms) ve model bazlı USD maliyetini hesaplar.\n- Günlük bütçe eşiği veya gecikme SLA'i (örn. >8000ms) aşıldığında uyarı üretir."
+      }
+    },
+    {
+      "id": "be1cb742-a8ae-4f36-ab10-6626d8e4a9cf",
+      "name": "Telemetry Ingestion Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        360
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "keystone-llm-telemetry",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "89280540-33fa-4b6c-a179-a88296875429",
+      "name": "Compute Token Cost & SLA Breach",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        360
+      ],
+      "parameters": {
+        "jsCode": "const b = $input.first()?.json?.body || $input.first()?.json || {};\nconst model = String(b.model || 'gpt-4o-mini').toLowerCase();\nconst promptTokens = Number(b.prompt_tokens || 0);\nconst completionTokens = Number(b.completion_tokens || 0);\nconst latencyMs = Number(b.latency_ms || 0);\n\n// Pricing per 1M tokens (USD)\nconst PRICING = {\n  'gpt-4o': { in: 2.50, out: 10.00 },\n  'gpt-4o-mini': { in: 0.15, out: 0.60 },\n  'deepseek-chat': { in: 0.14, out: 0.28 },\n  'claude-3-5-sonnet': { in: 3.00, out: 15.00 },\n  'gemini-2.0-flash': { in: 0.10, out: 0.40 }\n};\nconst rate = PRICING[model] || PRICING['gpt-4o-mini'];\nconst costUsd = ((promptTokens / 1e6) * rate.in) + ((completionTokens / 1e6) * rate.out);\nconst slaBreach = latencyMs > 8000 || costUsd > 0.50;\n\nreturn [{\n  json: {\n    timestamp: new Date().toISOString(),\n    workflow_name: b.workflow_name || 'unknown',\n    model,\n    prompt_tokens: promptTokens,\n    completion_tokens: completionTokens,\n    total_tokens: promptTokens + completionTokens,\n    latency_ms: latencyMs,\n    estimated_cost_usd: Number(costUsd.toFixed(6)),\n    sla_breach: slaBreach\n  }\n}];"
+      }
+    },
+    {
+      "id": "bed9fe36-0d0c-455e-a9ca-499ad48a7eba",
+      "name": "SLA or Cost Threshold Breached?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        360
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "773a4777-0935-44c3-a59f-5aca8ba90b42",
+              "leftValue": "={{ $json.sla_breach }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "76c61da6-fd5b-4c2a-aa83-68657f344190",
+      "name": "Notify FinOps Alert Channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        980,
+        280
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ALERT_WEBHOOK_URL || 'https://hooks.slack.com/services/REPLACE_ME' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: `⚠️ *Keystone LLM FinOps/SLA Uyarısı*\\n*Workflow:* ${$json.workflow_name} | *Model:* ${$json.model}\\n*Maliyet:* $${$json.estimated_cost_usd} | *Gecikme:* ${$json.latency_ms}ms | *Token:* ${$json.total_tokens}` }) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Telemetry Ingestion Webhook": {
+      "main": [
+        [
+          {
+            "node": "Compute Token Cost & SLA Breach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Token Cost & SLA Breach": {
+      "main": [
+        [
+          {
+            "node": "SLA or Cost Threshold Breached?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SLA or Cost Threshold Breached?": {
+      "main": [
+        [
+          {
+            "node": "Notify FinOps Alert Channel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  }
+}

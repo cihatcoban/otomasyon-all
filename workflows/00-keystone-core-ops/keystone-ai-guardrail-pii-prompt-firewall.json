@@ -1,0 +1,181 @@
+{
+  "id": "f84c720e-eedf-44f9-a2da-e62e6dea000f",
+  "name": "[Keystone Core] AI Security Guardrail: Prompt Injection & KVKK/GDPR PII Firewall",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    {
+      "id": "4aa9be96-1b92-4f92-ab93-bef79335fa2f",
+      "name": "00-keystone-core-ops"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-core"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "pinData": {},
+  "versionId": "6943955b-4edf-4f6d-a1c4-1ce84d7c210d",
+  "nodes": [
+    {
+      "id": "f62594f5-156b-461d-a04a-843696f305f7",
+      "name": "AI Security Firewall Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        100
+      ],
+      "parameters": {
+        "color": 5,
+        "width": 480,
+        "height": 220,
+        "content": "## Keystone AI Security & KVKK/GDPR PII Firewall\n**Pillar:** *Security Auditor (`/secure`)*\n- LLM düğümlerine gitmeden önce kullanıcı girdisini denetler.\n- T.C. Kimlik No, IBAN, Kredi Kartı, Telefon ve E-posta gibi kişisel verileri (PII) deterministik olarak maskeler.\n- Prompt Injection / Jailbreak saldırı kalıplarını tespit edip bloklar."
+      }
+    },
+    {
+      "id": "5a6597ea-ddad-47eb-a6f3-ffafc6fe5deb",
+      "name": "Guardrail Webhook Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        380
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "keystone-ai-guardrail",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "9af15114-92cc-466d-a827-655d24796995",
+      "name": "Deterministic PII Redactor & Injection Scanner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        380
+      ],
+      "parameters": {
+        "jsCode": "const body = $input.first()?.json?.body || $input.first()?.json || {};\nconst rawText = String(body.prompt || body.text || body.message || '');\n\n// 1. Prompt Injection Heuristic Patterns\nconst injectionPatterns = [\n  /ignore\\s+(all\\s+)?(previous|prior|above)\\s+instructions/i,\n  /system\\s*prompt/i,\n  /you\\s+are\\s+now\\s+dan/i,\n  /developer\\s+mode\\s+enabled/i,\n  /reveal\\s+your\\s+(secret|api|credentials)/i\n];\nconst matchedInjection = injectionPatterns.some(rx => rx.test(rawText));\n\n// 2. KVKK / GDPR PII Redaction\nlet sanitized = rawText\n  .replace(/\\bTR\\d{2}\\s?\\d{4}\\s?\\d{4}\\s?\\d{4}\\s?\\d{4}\\s?\\d{4}\\s?\\d{2}\\b/gi, '[MASKED_IBAN]')\n  .replace(/\\b(?:\\d[ -]*?){13,16}\\b/g, '[MASKED_CARD_OR_ID]')\n  .replace(/\\b[1-9]\\d{10}\\b/g, '[MASKED_TCKN]')\n  .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g, '[MASKED_EMAIL]')\n  .replace(/(\\+90|0)?\\s?5\\d{2}\\s?\\d{3}\\s?\\d{2}\\s?\\d{2}/g, '[MASKED_PHONE]');\n\nreturn [{\n  json: {\n    is_safe: !matchedInjection,\n    blocked_reason: matchedInjection ? 'PROMPT_INJECTION_DETECTED' : null,\n    sanitized_prompt: sanitized,\n    pii_redacted: sanitized !== rawText\n  }\n}];"
+      }
+    },
+    {
+      "id": "b3d68e33-03e7-442d-a27a-746670f219bf",
+      "name": "Is Input Safe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        380
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "99f5cda8-ee50-445a-af0f-f400171f8501",
+              "leftValue": "={{ $json.is_safe }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9ba5fcb0-ca4b-429b-ab5d-8193ca6ffbf8",
+      "name": "Return Sanitized Payload",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ALLOWED', sanitized_prompt: $json.sanitized_prompt, pii_redacted: $json.pii_redacted }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "9d65cab5-9e5b-4580-abd6-7b31565737fa",
+      "name": "Reject Malicious Prompt (HTTP 403)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'BLOCKED', error: $json.blocked_reason, message: 'İstek güvenlik politikası (Prompt Injection Guardrail) tarafından engellendi.' }) }}",
+        "options": {
+          "responseCode": 403
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Guardrail Webhook Input": {
+      "main": [
+        [
+          {
+            "node": "Deterministic PII Redactor & Injection Scanner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deterministic PII Redactor & Injection Scanner": {
+      "main": [
+        [
+          {
+            "node": "Is Input Safe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Input Safe?": {
+      "main": [
+        [
+          {
+            "node": "Return Sanitized Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject Malicious Prompt (HTTP 403)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

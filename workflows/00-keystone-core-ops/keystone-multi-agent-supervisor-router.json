@@ -1,0 +1,297 @@
+{
+  "id": "bdd0a1b2-8959-4059-ab13-aa08edba1d81",
+  "name": "[Keystone Core] Multi-Agent Supervisor Router with Irreversible Action Safety Gate",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    {
+      "id": "4aa9be96-1b92-4f92-ab93-bef79335fa2f",
+      "name": "00-keystone-core-ops"
+    },
+    {
+      "id": "e1568b94-6a20-436b-a911-6bfbd8347f7e",
+      "name": "keystone-core"
+    }
+  ],
+  "meta": {
+    "instanceId": "keystone-n8n-modern"
+  },
+  "pinData": {},
+  "versionId": "798a7a92-59b0-4192-a39d-5254bc7fc04a",
+  "nodes": [
+    {
+      "id": "7cab48fe-4548-4159-acdf-cb9c746e519b",
+      "name": "Supervisor Architecture Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        100
+      ],
+      "parameters": {
+        "color": 4,
+        "width": 500,
+        "height": 220,
+        "content": "## Keystone Multi-Agent Supervisor & Safety Gate\n**Pillar:** *Irreversible Action Safety & Domain Boundaries (`/design`, `/build`)*\n- Gelen kullanıcı taleplerini niyetine (Research, Data/SQL, Support, Destructive Mutation) göre sınıflandırır.\n- Silme, ödeme veya toplu e-posta gibi geri alınamaz (irreversible) aksiyonları otomatik çalıştırmak yerine **İnsan Onayı (Human-in-the-Loop)** kuyruğuna yönlendirir."
+      }
+    },
+    {
+      "id": "8b7a87ee-497b-40d5-a504-cb772c149f1d",
+      "name": "When Chat Message Received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        380
+      ],
+      "parameters": {
+        "options": {}
+      }
+    },
+    {
+      "id": "de187c9c-1357-4967-a3bd-e1bf90f77bcc",
+      "name": "Keystone Supervisor Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        480,
+        380
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Keystone Supervisor Router. Classify the user request into route: 'research', 'data_query', 'support', or 'destructive_action'. Always set requires_human_approval=true if the user asks to delete records, modify production schemas, send bulk messages, or execute financial transactions."
+        }
+      }
+    },
+    {
+      "id": "79841f72-9623-40af-aa97-977f75b8e711",
+      "name": "Supervisor LLM (GPT-4o)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        440,
+        600
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-default",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "id": "7752b9b7-f2e7-4c65-af15-32c65bd54333",
+      "name": "Session Window Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        600,
+        600
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "1a16d99b-493c-4d35-ae91-19ada54b0a63",
+      "name": "Route Schema Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        760,
+        600
+      ],
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"route\":{\"type\":\"string\"},\"requires_human_approval\":{\"type\":\"boolean\"},\"response_or_plan\":{\"type\":\"string\"}}}"
+      }
+    },
+    {
+      "id": "948cd16d-20ad-4eb2-af1b-5ef3285e2802",
+      "name": "Requires Human Approval?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        380
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "713cfc51-6d38-4b0c-a90d-6d2560b301ba",
+              "leftValue": "={{ $json.output?.requires_human_approval }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9c51d62b-6f0f-4d19-a47f-c78182e33f21",
+      "name": "Hold for Human-in-the-Loop Approval",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1100,
+        280
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "33112ee1-4ee4-49c3-ab52-fe90322ec81d",
+              "name": "status",
+              "type": "string",
+              "value": "PENDING_HUMAN_APPROVAL"
+            },
+            {
+              "id": "f998fe06-afa0-4fbe-a3e0-449dc2b16983",
+              "name": "message",
+              "type": "string",
+              "value": "=Bu işlem geri alınamaz (irreversible) olarak sınıflandırıldı ve insan onayına alındı: {{ $json.output?.response_or_plan }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ccb67d1a-b0de-465a-a6d9-cf8275d4b296",
+      "name": "Deliver Safe Specialist Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1100,
+        480
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8b5cc4df-7eec-4d32-a781-4eca4af047ae",
+              "name": "status",
+              "type": "string",
+              "value": "COMPLETED"
+            },
+            {
+              "id": "ac0f09c0-f8bf-4e7a-ab06-3d863255f16d",
+              "name": "route",
+              "type": "string",
+              "value": "={{ $json.output?.route }}"
+            },
+            {
+              "id": "cef7fc13-a381-4093-affa-263548908877",
+              "name": "output",
+              "type": "string",
+              "value": "={{ $json.output?.response_or_plan }}"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Chat Message Received": {
+      "main": [
+        [
+          {
+            "node": "Keystone Supervisor Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supervisor LLM (GPT-4o)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Keystone Supervisor Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Session Window Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Keystone Supervisor Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Schema Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Keystone Supervisor Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keystone Supervisor Agent": {
+      "main": [
+        [
+          {
+            "node": "Requires Human Approval?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Requires Human Approval?": {
+      "main": [
+        [
+          {
+            "node": "Hold for Human-in-the-Loop Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Deliver Safe Specialist Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
